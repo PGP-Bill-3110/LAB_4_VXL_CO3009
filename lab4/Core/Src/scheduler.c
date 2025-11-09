@@ -34,7 +34,7 @@ static sTaskNode* alloc_node(void) {
     return NULL;
 }
 
-static void free_node(sTaskNode* node) {
+static void SCH_Delete_Task(sTaskNode* node) {
     int idx = node - task_nodes;
     if (idx >= 0 && idx < SCH_MAX_TASKS) node_used[idx] = 0;
 }
