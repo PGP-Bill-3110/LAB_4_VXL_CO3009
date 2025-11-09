@@ -1,0 +1,5 @@
+../Core/Src/led.c:11:6:toggle_led1	1
+../Core/Src/led.c:14:6:toggle_led2	1
+../Core/Src/led.c:17:6:toggle_led3	1
+../Core/Src/led.c:20:6:toggle_led4	1
+../Core/Src/led.c:23:6:toggle_led5	1
