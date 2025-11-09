@@ -1,92 +1,116 @@
 #include "scheduler.h"
 
 #define INVALID_ID 255
+#define WHEEL_SIZE 32
 
-sTask SCH_tasks_G[SCH_MAX_TASKS];
+typedef struct sTaskNode {
+    sTask task;
+    struct sTaskNode* next;
+} sTaskNode;
+
+sTaskNode* timer_wheel[WHEEL_SIZE];
+uint8_t task_count = 0;
+uint32_t current_tick = 0;
 uint8_t Error_code_G = 0;
 
-
-static uint8_t task_count = 0;
-
+static sTaskNode task_nodes[SCH_MAX_TASKS];
+static uint8_t node_used[SCH_MAX_TASKS];
 
 void SCH_Init(void) {
-    for (int i = 0; i < SCH_MAX_TASKS; i++) {
-        SCH_tasks_G[i].pTask = 0;
-        SCH_tasks_G[i].Delay = 0;
-        SCH_tasks_G[i].Period = 0;
-        SCH_tasks_G[i].RunMe = 0;
-        SCH_tasks_G[i].TaskID = INVALID_ID;
-    }
+    for (int i = 0; i < WHEEL_SIZE; i++) timer_wheel[i] = NULL;
+    for (int i = 0; i < SCH_MAX_TASKS; i++) { node_used[i] = 0;}
     task_count = 0;
+    current_tick = 0;
     Error_code_G = 0;
 }
 
-
-void SCH_Update(void) {
-
-    for (uint8_t i = 0; i < task_count; i++) {
-        if (SCH_tasks_G[i].pTask != 0) {
-            if (SCH_tasks_G[i].Delay > 0) {
-                SCH_tasks_G[i].Delay--;
-            } else {
-                SCH_tasks_G[i].RunMe++;
-                if (SCH_tasks_G[i].Period > 0) {
-                    SCH_tasks_G[i].Delay = SCH_tasks_G[i].Period;
-                }
-            }
+static sTaskNode* alloc_node(void) {
+    for (int i = 0; i < SCH_MAX_TASKS; i++) {
+        if (!node_used[i]) {
+            node_used[i] = 1;
+            return &task_nodes[i];
         }
     }
+    return NULL;
 }
 
-
-void SCH_Dispatch_Tasks(void) {
-    for (uint8_t i = 0; i < task_count; i++) {
-        if (SCH_tasks_G[i].RunMe > 0) {
-            SCH_tasks_G[i].RunMe--;
-            if (SCH_tasks_G[i].pTask != 0) {
-                (*SCH_tasks_G[i].pTask)();
-            }
-            if (SCH_tasks_G[i].Period == 0) {
-                SCH_Delete_Task(i);
-            }
-        }
-    }
+static void free_node(sTaskNode* node) {
+    int idx = node - task_nodes;
+    if (idx >= 0 && idx < SCH_MAX_TASKS) node_used[idx] = 0;
 }
 
-
-unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int DELAY, unsigned int PERIOD) {
+unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int period) {
     if (task_count >= SCH_MAX_TASKS) {
         Error_code_G = 1;
         return INVALID_ID;
     }
+    sTaskNode* node = alloc_node();
+    if (!node) return INVALID_ID;
+    node->task.pTask = pFunction;
+    node->task.Delay = delay;
+    node->task.Period = period;
+    node->task.RunMe = 0;
+    node->task.TaskID = task_count;
 
-    uint8_t id = task_count;
 
-    SCH_tasks_G[id].pTask = pFunction;
-    SCH_tasks_G[id].Delay = DELAY;
-    SCH_tasks_G[id].Period = PERIOD;
-    SCH_tasks_G[id].RunMe = 0;
-    SCH_tasks_G[id].TaskID = id;
-
+    uint32_t slot = (current_tick + delay) % WHEEL_SIZE;
+    node->next = timer_wheel[slot];
+    timer_wheel[slot] = node;
     task_count++;
-    return id;
+    return node->task.TaskID;
 }
 
+// O(1)
+void SCH_Update(void) {
+    uint32_t slot = current_tick % WHEEL_SIZE;
+    sTaskNode* prev = NULL;
+    sTaskNode* node = timer_wheel[slot];
+    while (node) {
+        node->task.RunMe++;
 
-uint8_t SCH_Delete_Task(uint32_t taskID) {
-    if (taskID >= task_count) return 0;
-    task_count--;
-    if (taskID != task_count) {
-        SCH_tasks_G[taskID] = SCH_tasks_G[task_count];
-        SCH_tasks_G[taskID].TaskID = taskID;
+        if (node->task.Period > 0) {
+            // move to future slot
+            uint32_t next_slot = (current_tick + node->task.Period) % WHEEL_SIZE;
+
+            // Remove from current slot
+            if (prev) prev->next = node->next;
+            else timer_wheel[slot] = node->next;
+
+            // Insert into new slot
+            sTaskNode* to_move = node;
+            node = (prev) ? prev->next : timer_wheel[slot];
+
+            to_move->next = timer_wheel[next_slot];
+            timer_wheel[next_slot] = to_move;
+        } else {
+            // one-shot: just move to next
+            prev = node;
+            node = node->next;
+        }
     }
+    current_tick++;
+}
 
-
-    SCH_tasks_G[task_count].pTask = 0;
-    SCH_tasks_G[task_count].Delay = 0;
-    SCH_tasks_G[task_count].Period = 0;
-    SCH_tasks_G[task_count].RunMe = 0;
-    SCH_tasks_G[task_count].TaskID = INVALID_ID;
-
-    return 1;
+void SCH_Dispatch_Tasks(void) {
+    uint32_t slot = (current_tick - 1) % WHEEL_SIZE;
+    sTaskNode* prev = NULL;
+    sTaskNode* node = timer_wheel[slot];
+    while (node) {
+        if (node->task.RunMe > 0) {
+            node->task.RunMe--;
+            if (node->task.pTask) (*node->task.pTask)();
+            if (node->task.Period == 0) {
+                // Delete one-shot task
+                if (prev) prev->next = node->next;
+                else timer_wheel[slot] = node->next;
+                free_node(node);
+                task_count--;
+                // Restart scan from prev/slot in case link changed
+                node = (prev) ? prev->next : timer_wheel[slot];
+                continue;
+            }
+        }
+        prev = node;
+        node = node->next;
+    }
 }
