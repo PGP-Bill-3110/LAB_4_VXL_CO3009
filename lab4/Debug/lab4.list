@@ -29,23 +29,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY
  12 .comment      00000043  00000000  00000000  00020035  2**0
                   CONTENTS, READONLY
- 13 .debug_info   00007f95  00000000  00000000  00020078  2**0
+ 13 .debug_info   00007f8f  00000000  00000000  00020078  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_abbrev 00001814  00000000  00000000  0002800d  2**0
+ 14 .debug_abbrev 00001826  00000000  00000000  00028007  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_aranges 000009b8  00000000  00000000  00029828  2**3
+ 15 .debug_aranges 000009b8  00000000  00000000  00029830  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_rnglists 00000774  00000000  00000000  0002a1e0  2**0
+ 16 .debug_rnglists 00000774  00000000  00000000  0002a1e8  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_macro  000165cc  00000000  00000000  0002a954  2**0
+ 17 .debug_macro  000165cc  00000000  00000000  0002a95c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   0000a85b  00000000  00000000  00040f20  2**0
+ 18 .debug_line   0000a856  00000000  00000000  00040f28  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    00081f7f  00000000  00000000  0004b77b  2**0
+ 19 .debug_str    00081f6e  00000000  00000000  0004b77e  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .debug_frame  00002758  00000000  00000000  000cd6fc  2**2
+ 20 .debug_frame  00002758  00000000  00000000  000cd6ec  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 00000044  00000000  00000000  000cfe54  2**0
+ 21 .debug_line_str 00000044  00000000  00000000  000cfe44  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -548,10 +548,10 @@ __STATIC_FORCEINLINE void __disable_irq(void)
  80003be:	e7fe      	b.n	80003be <Error_Handler+0x8>
 
 080003c0 <SCH_Init>:
-uint8_t Error_code_G = 0;
 
-static sTaskNode task_nodes[SCH_MAX_TASKS];
-static uint8_t node_used[SCH_MAX_TASKS];
+// Bộ nhớ tĩnh cho các ID task
+static sTaskID task_IDs[SCH_MAX_TASKS];
+static uint8_t ID_used[SCH_MAX_TASKS];
 
 void SCH_Init(void) {
  80003c0:	b480      	push	{r7}
@@ -571,7 +571,7 @@ void SCH_Init(void) {
  80003dc:	687b      	ldr	r3, [r7, #4]
  80003de:	2b1f      	cmp	r3, #31
  80003e0:	ddf4      	ble.n	80003cc <SCH_Init+0xc>
-    for (int i = 0; i < SCH_MAX_TASKS; i++) { node_used[i] = 0;}
+    for (int i = 0; i < SCH_MAX_TASKS; i++) ID_used[i] = 0;
  80003e2:	2300      	movs	r3, #0
  80003e4:	603b      	str	r3, [r7, #0]
  80003e6:	e007      	b.n	80003f8 <SCH_Init+0x38>
@@ -611,48 +611,49 @@ void SCH_Init(void) {
  8000428:	200000f4 	.word	0x200000f4
  800042c:	200000f8 	.word	0x200000f8
 
-08000430 <alloc_node>:
+08000430 <alloc_ID>:
 
-static sTaskNode* alloc_node(void) {
+// Cấp phát 1 ID trống từ mảng tĩnh
+static sTaskID* alloc_ID(void) {
  8000430:	b480      	push	{r7}
  8000432:	b083      	sub	sp, #12
  8000434:	af00      	add	r7, sp, #0
     for (int i = 0; i < SCH_MAX_TASKS; i++) {
  8000436:	2300      	movs	r3, #0
  8000438:	607b      	str	r3, [r7, #4]
- 800043a:	e015      	b.n	8000468 <alloc_node+0x38>
-        if (!node_used[i]) {
- 800043c:	4a0f      	ldr	r2, [pc, #60]	; (800047c <alloc_node+0x4c>)
+ 800043a:	e015      	b.n	8000468 <alloc_ID+0x38>
+        if (!ID_used[i]) {
+ 800043c:	4a0f      	ldr	r2, [pc, #60]	; (800047c <alloc_ID+0x4c>)
  800043e:	687b      	ldr	r3, [r7, #4]
  8000440:	4413      	add	r3, r2
  8000442:	781b      	ldrb	r3, [r3, #0]
  8000444:	2b00      	cmp	r3, #0
- 8000446:	d10c      	bne.n	8000462 <alloc_node+0x32>
-            node_used[i] = 1;
- 8000448:	4a0c      	ldr	r2, [pc, #48]	; (800047c <alloc_node+0x4c>)
+ 8000446:	d10c      	bne.n	8000462 <alloc_ID+0x32>
+            ID_used[i] = 1;
+ 8000448:	4a0c      	ldr	r2, [pc, #48]	; (800047c <alloc_ID+0x4c>)
  800044a:	687b      	ldr	r3, [r7, #4]
  800044c:	4413      	add	r3, r2
  800044e:	2201      	movs	r2, #1
  8000450:	701a      	strb	r2, [r3, #0]
-            return &task_nodes[i];
+            return &task_IDs[i];
  8000452:	687a      	ldr	r2, [r7, #4]
  8000454:	4613      	mov	r3, r2
  8000456:	005b      	lsls	r3, r3, #1
  8000458:	4413      	add	r3, r2
  800045a:	00db      	lsls	r3, r3, #3
- 800045c:	4a08      	ldr	r2, [pc, #32]	; (8000480 <alloc_node+0x50>)
+ 800045c:	4a08      	ldr	r2, [pc, #32]	; (8000480 <alloc_ID+0x50>)
  800045e:	4413      	add	r3, r2
- 8000460:	e006      	b.n	8000470 <alloc_node+0x40>
+ 8000460:	e006      	b.n	8000470 <alloc_ID+0x40>
     for (int i = 0; i < SCH_MAX_TASKS; i++) {
  8000462:	687b      	ldr	r3, [r7, #4]
  8000464:	3301      	adds	r3, #1
  8000466:	607b      	str	r3, [r7, #4]
  8000468:	687b      	ldr	r3, [r7, #4]
  800046a:	2b09      	cmp	r3, #9
- 800046c:	dde6      	ble.n	800043c <alloc_node+0xc>
+ 800046c:	dde6      	ble.n	800043c <alloc_ID+0xc>
         }
     }
-    return NULL;
+    return NULL; // hết bộ nhớ
  800046e:	2300      	movs	r3, #0
 }
  8000470:	4618      	mov	r0, r3
@@ -664,33 +665,36 @@ static sTaskNode* alloc_node(void) {
  800047c:	200001ec 	.word	0x200001ec
  8000480:	200000fc 	.word	0x200000fc
 
-08000484 <free_node>:
+08000484 <free_ID>:
 
-static void free_node(sTaskNode* node) {
+// Giải phóng ID (trả về cho pool)
+static void free_ID(sTaskID* ID) {
  8000484:	b480      	push	{r7}
  8000486:	b085      	sub	sp, #20
  8000488:	af00      	add	r7, sp, #0
  800048a:	6078      	str	r0, [r7, #4]
-    int idx = node - task_nodes;
+    int idx = ID - task_IDs;
  800048c:	687b      	ldr	r3, [r7, #4]
- 800048e:	4a0b      	ldr	r2, [pc, #44]	; (80004bc <free_node+0x38>)
+ 800048e:	4a0b      	ldr	r2, [pc, #44]	; (80004bc <free_ID+0x38>)
  8000490:	1a9b      	subs	r3, r3, r2
  8000492:	10db      	asrs	r3, r3, #3
- 8000494:	4a0a      	ldr	r2, [pc, #40]	; (80004c0 <free_node+0x3c>)
+ 8000494:	4a0a      	ldr	r2, [pc, #40]	; (80004c0 <free_ID+0x3c>)
  8000496:	fb02 f303 	mul.w	r3, r2, r3
  800049a:	60fb      	str	r3, [r7, #12]
-    if (idx >= 0 && idx < SCH_MAX_TASKS) node_used[idx] = 0;
+    if (idx >= 0 && idx < SCH_MAX_TASKS) {
  800049c:	68fb      	ldr	r3, [r7, #12]
  800049e:	2b00      	cmp	r3, #0
- 80004a0:	db07      	blt.n	80004b2 <free_node+0x2e>
+ 80004a0:	db07      	blt.n	80004b2 <free_ID+0x2e>
  80004a2:	68fb      	ldr	r3, [r7, #12]
  80004a4:	2b09      	cmp	r3, #9
- 80004a6:	dc04      	bgt.n	80004b2 <free_node+0x2e>
- 80004a8:	4a06      	ldr	r2, [pc, #24]	; (80004c4 <free_node+0x40>)
+ 80004a6:	dc04      	bgt.n	80004b2 <free_ID+0x2e>
+        ID_used[idx] = 0;
+ 80004a8:	4a06      	ldr	r2, [pc, #24]	; (80004c4 <free_ID+0x40>)
  80004aa:	68fb      	ldr	r3, [r7, #12]
  80004ac:	4413      	add	r3, r2
  80004ae:	2200      	movs	r2, #0
  80004b0:	701a      	strb	r2, [r3, #0]
+    }
 }
  80004b2:	bf00      	nop
  80004b4:	3714      	adds	r7, #20
@@ -723,38 +727,39 @@ unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int
  80004e2:	23ff      	movs	r3, #255	; 0xff
  80004e4:	e033      	b.n	800054e <SCH_Add_Task+0x86>
     }
-    sTaskNode* node = alloc_node();
- 80004e6:	f7ff ffa3 	bl	8000430 <alloc_node>
+
+    sTaskID* ID = alloc_ID();
+ 80004e6:	f7ff ffa3 	bl	8000430 <alloc_ID>
  80004ea:	6178      	str	r0, [r7, #20]
-    if (!node) return INVALID_ID;
+    if (!ID) return INVALID_ID;
  80004ec:	697b      	ldr	r3, [r7, #20]
  80004ee:	2b00      	cmp	r3, #0
  80004f0:	d101      	bne.n	80004f6 <SCH_Add_Task+0x2e>
  80004f2:	23ff      	movs	r3, #255	; 0xff
  80004f4:	e02b      	b.n	800054e <SCH_Add_Task+0x86>
-    node->task.pTask = pFunction;
+
+    ID->task.pTask = pFunction;
  80004f6:	697b      	ldr	r3, [r7, #20]
  80004f8:	68fa      	ldr	r2, [r7, #12]
  80004fa:	601a      	str	r2, [r3, #0]
-    node->task.Delay = delay;
+    ID->task.Delay = delay;
  80004fc:	697b      	ldr	r3, [r7, #20]
  80004fe:	68ba      	ldr	r2, [r7, #8]
  8000500:	605a      	str	r2, [r3, #4]
-    node->task.Period = period;
+    ID->task.Period = period;
  8000502:	697b      	ldr	r3, [r7, #20]
  8000504:	687a      	ldr	r2, [r7, #4]
  8000506:	609a      	str	r2, [r3, #8]
-    node->task.RunMe = 0;
+    ID->task.RunMe = 0;
  8000508:	697b      	ldr	r3, [r7, #20]
  800050a:	2200      	movs	r2, #0
  800050c:	731a      	strb	r2, [r3, #12]
-    node->task.TaskID = task_count;
+    ID->task.TaskID = task_count;
  800050e:	4b12      	ldr	r3, [pc, #72]	; (8000558 <SCH_Add_Task+0x90>)
  8000510:	781b      	ldrb	r3, [r3, #0]
  8000512:	461a      	mov	r2, r3
  8000514:	697b      	ldr	r3, [r7, #20]
  8000516:	611a      	str	r2, [r3, #16]
-
 
     uint32_t slot = (current_tick + delay) % WHEEL_SIZE;
  8000518:	4b11      	ldr	r3, [pc, #68]	; (8000560 <SCH_Add_Task+0x98>)
@@ -763,17 +768,18 @@ unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int
  800051e:	4413      	add	r3, r2
  8000520:	f003 031f 	and.w	r3, r3, #31
  8000524:	613b      	str	r3, [r7, #16]
-    node->next = timer_wheel[slot];
+    ID->next = timer_wheel[slot];
  8000526:	4a0f      	ldr	r2, [pc, #60]	; (8000564 <SCH_Add_Task+0x9c>)
  8000528:	693b      	ldr	r3, [r7, #16]
  800052a:	f852 2023 	ldr.w	r2, [r2, r3, lsl #2]
  800052e:	697b      	ldr	r3, [r7, #20]
  8000530:	615a      	str	r2, [r3, #20]
-    timer_wheel[slot] = node;
+    timer_wheel[slot] = ID;
  8000532:	490c      	ldr	r1, [pc, #48]	; (8000564 <SCH_Add_Task+0x9c>)
  8000534:	693b      	ldr	r3, [r7, #16]
  8000536:	697a      	ldr	r2, [r7, #20]
  8000538:	f841 2023 	str.w	r2, [r1, r3, lsl #2]
+
     task_count++;
  800053c:	4b06      	ldr	r3, [pc, #24]	; (8000558 <SCH_Add_Task+0x90>)
  800053e:	781b      	ldrb	r3, [r3, #0]
@@ -781,7 +787,7 @@ unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int
  8000542:	b2da      	uxtb	r2, r3
  8000544:	4b04      	ldr	r3, [pc, #16]	; (8000558 <SCH_Add_Task+0x90>)
  8000546:	701a      	strb	r2, [r3, #0]
-    return node->task.TaskID;
+    return ID->task.TaskID;
  8000548:	697b      	ldr	r3, [r7, #20]
  800054a:	691b      	ldr	r3, [r3, #16]
  800054c:	b2db      	uxtb	r3, r3
@@ -798,7 +804,7 @@ unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int
 
 08000568 <SCH_Update>:
 
-// O(1)
+// Cập nhật scheduler — O(1)
 void SCH_Update(void) {
  8000568:	b480      	push	{r7}
  800056a:	b087      	sub	sp, #28
@@ -808,17 +814,18 @@ void SCH_Update(void) {
  8000570:	681b      	ldr	r3, [r3, #0]
  8000572:	f003 031f 	and.w	r3, r3, #31
  8000576:	60fb      	str	r3, [r7, #12]
-    sTaskNode* prev = NULL;
+    sTaskID* prev = NULL;
  8000578:	2300      	movs	r3, #0
  800057a:	617b      	str	r3, [r7, #20]
-    sTaskNode* node = timer_wheel[slot];
+    sTaskID* ID = timer_wheel[slot];
  800057c:	4a29      	ldr	r2, [pc, #164]	; (8000624 <SCH_Update+0xbc>)
  800057e:	68fb      	ldr	r3, [r7, #12]
  8000580:	f852 3023 	ldr.w	r3, [r2, r3, lsl #2]
  8000584:	613b      	str	r3, [r7, #16]
-    while (node) {
+
+    while (ID) {
  8000586:	e03d      	b.n	8000604 <SCH_Update+0x9c>
-        node->task.RunMe++;
+        ID->task.RunMe++;
  8000588:	693b      	ldr	r3, [r7, #16]
  800058a:	7b1b      	ldrb	r3, [r3, #12]
  800058c:	3301      	adds	r3, #1
@@ -826,13 +833,12 @@ void SCH_Update(void) {
  8000590:	693b      	ldr	r3, [r7, #16]
  8000592:	731a      	strb	r2, [r3, #12]
 
-        if (node->task.Period > 0) {
+        if (ID->task.Period > 0) {
  8000594:	693b      	ldr	r3, [r7, #16]
  8000596:	689b      	ldr	r3, [r3, #8]
  8000598:	2b00      	cmp	r3, #0
  800059a:	d02e      	beq.n	80005fa <SCH_Update+0x92>
-            // move to future slot
-            uint32_t next_slot = (current_tick + node->task.Period) % WHEEL_SIZE;
+            uint32_t next_slot = (current_tick + ID->task.Period) % WHEEL_SIZE;
  800059c:	693b      	ldr	r3, [r7, #16]
  800059e:	689a      	ldr	r2, [r3, #8]
  80005a0:	4b1f      	ldr	r3, [pc, #124]	; (8000620 <SCH_Update+0xb8>)
@@ -841,8 +847,8 @@ void SCH_Update(void) {
  80005a6:	f003 031f 	and.w	r3, r3, #31
  80005aa:	60bb      	str	r3, [r7, #8]
 
-            // Remove from current slot
-            if (prev) prev->next = node->next;
+            // Xóa khỏi slot hiện tại
+            if (prev) prev->next = ID->next;
  80005ac:	697b      	ldr	r3, [r7, #20]
  80005ae:	2b00      	cmp	r3, #0
  80005b0:	d004      	beq.n	80005bc <SCH_Update+0x54>
@@ -851,18 +857,18 @@ void SCH_Update(void) {
  80005b6:	697b      	ldr	r3, [r7, #20]
  80005b8:	615a      	str	r2, [r3, #20]
  80005ba:	e005      	b.n	80005c8 <SCH_Update+0x60>
-            else timer_wheel[slot] = node->next;
+            else timer_wheel[slot] = ID->next;
  80005bc:	693b      	ldr	r3, [r7, #16]
  80005be:	695a      	ldr	r2, [r3, #20]
  80005c0:	4918      	ldr	r1, [pc, #96]	; (8000624 <SCH_Update+0xbc>)
  80005c2:	68fb      	ldr	r3, [r7, #12]
  80005c4:	f841 2023 	str.w	r2, [r1, r3, lsl #2]
 
-            // Insert into new slot
-            sTaskNode* to_move = node;
+            // Chuyển sang slot mới
+            sTaskID* to_move = ID;
  80005c8:	693b      	ldr	r3, [r7, #16]
  80005ca:	607b      	str	r3, [r7, #4]
-            node = (prev) ? prev->next : timer_wheel[slot];
+            ID = (prev) ? prev->next : timer_wheel[slot];
  80005cc:	697b      	ldr	r3, [r7, #20]
  80005ce:	2b00      	cmp	r3, #0
  80005d0:	d002      	beq.n	80005d8 <SCH_Update+0x70>
@@ -887,20 +893,20 @@ void SCH_Update(void) {
  80005f4:	f841 2023 	str.w	r2, [r1, r3, lsl #2]
  80005f8:	e004      	b.n	8000604 <SCH_Update+0x9c>
         } else {
-            // one-shot: just move to next
-            prev = node;
+            prev = ID;
  80005fa:	693b      	ldr	r3, [r7, #16]
  80005fc:	617b      	str	r3, [r7, #20]
-            node = node->next;
+            ID = ID->next;
  80005fe:	693b      	ldr	r3, [r7, #16]
  8000600:	695b      	ldr	r3, [r3, #20]
  8000602:	613b      	str	r3, [r7, #16]
-    while (node) {
+    while (ID) {
  8000604:	693b      	ldr	r3, [r7, #16]
  8000606:	2b00      	cmp	r3, #0
  8000608:	d1be      	bne.n	8000588 <SCH_Update+0x20>
         }
     }
+
     current_tick++;
  800060a:	4b05      	ldr	r3, [pc, #20]	; (8000620 <SCH_Update+0xb8>)
  800060c:	681b      	ldr	r3, [r3, #0]
@@ -929,29 +935,30 @@ void SCH_Dispatch_Tasks(void) {
  8000632:	3b01      	subs	r3, #1
  8000634:	f003 031f 	and.w	r3, r3, #31
  8000638:	607b      	str	r3, [r7, #4]
-    sTaskNode* prev = NULL;
+    sTaskID* prev = NULL;
  800063a:	2300      	movs	r3, #0
  800063c:	60fb      	str	r3, [r7, #12]
-    sTaskNode* node = timer_wheel[slot];
+    sTaskID* ID = timer_wheel[slot];
  800063e:	4a26      	ldr	r2, [pc, #152]	; (80006d8 <SCH_Dispatch_Tasks+0xb0>)
  8000640:	687b      	ldr	r3, [r7, #4]
  8000642:	f852 3023 	ldr.w	r3, [r2, r3, lsl #2]
  8000646:	60bb      	str	r3, [r7, #8]
-    while (node) {
+
+    while (ID) {
  8000648:	e03c      	b.n	80006c4 <SCH_Dispatch_Tasks+0x9c>
-        if (node->task.RunMe > 0) {
+        if (ID->task.RunMe > 0) {
  800064a:	68bb      	ldr	r3, [r7, #8]
  800064c:	7b1b      	ldrb	r3, [r3, #12]
  800064e:	2b00      	cmp	r3, #0
  8000650:	d033      	beq.n	80006ba <SCH_Dispatch_Tasks+0x92>
-            node->task.RunMe--;
+            ID->task.RunMe--;
  8000652:	68bb      	ldr	r3, [r7, #8]
  8000654:	7b1b      	ldrb	r3, [r3, #12]
  8000656:	3b01      	subs	r3, #1
  8000658:	b2da      	uxtb	r2, r3
  800065a:	68bb      	ldr	r3, [r7, #8]
  800065c:	731a      	strb	r2, [r3, #12]
-            if (node->task.pTask) (*node->task.pTask)();
+            if (ID->task.pTask) (*ID->task.pTask)();
  800065e:	68bb      	ldr	r3, [r7, #8]
  8000660:	681b      	ldr	r3, [r3, #0]
  8000662:	2b00      	cmp	r3, #0
@@ -959,13 +966,14 @@ void SCH_Dispatch_Tasks(void) {
  8000666:	68bb      	ldr	r3, [r7, #8]
  8000668:	681b      	ldr	r3, [r3, #0]
  800066a:	4798      	blx	r3
-            if (node->task.Period == 0) {
+
+            // Nếu là task 1 lần, xóa nó
+            if (ID->task.Period == 0) {
  800066c:	68bb      	ldr	r3, [r7, #8]
  800066e:	689b      	ldr	r3, [r3, #8]
  8000670:	2b00      	cmp	r3, #0
  8000672:	d122      	bne.n	80006ba <SCH_Dispatch_Tasks+0x92>
-                // Delete one-shot task
-                if (prev) prev->next = node->next;
+                if (prev) prev->next = ID->next;
  8000674:	68fb      	ldr	r3, [r7, #12]
  8000676:	2b00      	cmp	r3, #0
  8000678:	d004      	beq.n	8000684 <SCH_Dispatch_Tasks+0x5c>
@@ -974,15 +982,16 @@ void SCH_Dispatch_Tasks(void) {
  800067e:	68fb      	ldr	r3, [r7, #12]
  8000680:	615a      	str	r2, [r3, #20]
  8000682:	e005      	b.n	8000690 <SCH_Dispatch_Tasks+0x68>
-                else timer_wheel[slot] = node->next;
+                else timer_wheel[slot] = ID->next;
  8000684:	68bb      	ldr	r3, [r7, #8]
  8000686:	695a      	ldr	r2, [r3, #20]
  8000688:	4913      	ldr	r1, [pc, #76]	; (80006d8 <SCH_Dispatch_Tasks+0xb0>)
  800068a:	687b      	ldr	r3, [r7, #4]
  800068c:	f841 2023 	str.w	r2, [r1, r3, lsl #2]
-                free_node(node);
+
+                free_ID(ID);
  8000690:	68b8      	ldr	r0, [r7, #8]
- 8000692:	f7ff fef7 	bl	8000484 <free_node>
+ 8000692:	f7ff fef7 	bl	8000484 <free_ID>
                 task_count--;
  8000696:	4b11      	ldr	r3, [pc, #68]	; (80006dc <SCH_Dispatch_Tasks+0xb4>)
  8000698:	781b      	ldrb	r3, [r3, #0]
@@ -990,8 +999,8 @@ void SCH_Dispatch_Tasks(void) {
  800069c:	b2da      	uxtb	r2, r3
  800069e:	4b0f      	ldr	r3, [pc, #60]	; (80006dc <SCH_Dispatch_Tasks+0xb4>)
  80006a0:	701a      	strb	r2, [r3, #0]
-                // Restart scan from prev/slot in case link changed
-                node = (prev) ? prev->next : timer_wheel[slot];
+
+                ID = (prev) ? prev->next : timer_wheel[slot];
  80006a2:	68fb      	ldr	r3, [r7, #12]
  80006a4:	2b00      	cmp	r3, #0
  80006a6:	d002      	beq.n	80006ae <SCH_Dispatch_Tasks+0x86>
@@ -1006,14 +1015,14 @@ void SCH_Dispatch_Tasks(void) {
  80006b8:	e004      	b.n	80006c4 <SCH_Dispatch_Tasks+0x9c>
             }
         }
-        prev = node;
+        prev = ID;
  80006ba:	68bb      	ldr	r3, [r7, #8]
  80006bc:	60fb      	str	r3, [r7, #12]
-        node = node->next;
+        ID = ID->next;
  80006be:	68bb      	ldr	r3, [r7, #8]
  80006c0:	695b      	ldr	r3, [r3, #20]
  80006c2:	60bb      	str	r3, [r7, #8]
-    while (node) {
+    while (ID) {
  80006c4:	68bb      	ldr	r3, [r7, #8]
  80006c6:	2b00      	cmp	r3, #0
  80006c8:	d1bf      	bne.n	800064a <SCH_Dispatch_Tasks+0x22>

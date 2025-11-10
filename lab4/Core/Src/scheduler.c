@@ -3,40 +3,45 @@
 #define INVALID_ID 255
 #define WHEEL_SIZE 32
 
-typedef struct sTaskNode {
+typedef struct sTaskID {
     sTask task;
-    struct sTaskNode* next;
-} sTaskNode;
+    struct sTaskID* next;
+} sTaskID;
 
-sTaskNode* timer_wheel[WHEEL_SIZE];
+sTaskID* timer_wheel[WHEEL_SIZE];
 uint8_t task_count = 0;
 uint32_t current_tick = 0;
 uint8_t Error_code_G = 0;
 
-static sTaskNode task_nodes[SCH_MAX_TASKS];
-static uint8_t node_used[SCH_MAX_TASKS];
+// Bộ nhớ tĩnh cho các ID task
+static sTaskID task_IDs[SCH_MAX_TASKS];
+static uint8_t ID_used[SCH_MAX_TASKS];
 
 void SCH_Init(void) {
     for (int i = 0; i < WHEEL_SIZE; i++) timer_wheel[i] = NULL;
-    for (int i = 0; i < SCH_MAX_TASKS; i++) { node_used[i] = 0;}
+    for (int i = 0; i < SCH_MAX_TASKS; i++) ID_used[i] = 0;
     task_count = 0;
     current_tick = 0;
     Error_code_G = 0;
 }
 
-static sTaskNode* alloc_node(void) {
+// Cấp phát 1 ID trống từ mảng tĩnh
+static sTaskID* alloc_ID(void) {
     for (int i = 0; i < SCH_MAX_TASKS; i++) {
-        if (!node_used[i]) {
-            node_used[i] = 1;
-            return &task_nodes[i];
+        if (!ID_used[i]) {
+            ID_used[i] = 1;
+            return &task_IDs[i];
         }
     }
-    return NULL;
+    return NULL; // hết bộ nhớ
 }
 
-static void free_node(sTaskNode* node) {
-    int idx = node - task_nodes;
-    if (idx >= 0 && idx < SCH_MAX_TASKS) node_used[idx] = 0;
+// Giải phóng ID (trả về cho pool)
+static void free_ID(sTaskID* ID) {
+    int idx = ID - task_IDs;
+    if (idx >= 0 && idx < SCH_MAX_TASKS) {
+        ID_used[idx] = 0;
+    }
 }
 
 unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int period) {
@@ -44,73 +49,78 @@ unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int
         Error_code_G = 1;
         return INVALID_ID;
     }
-    sTaskNode* node = alloc_node();
-    if (!node) return INVALID_ID;
-    node->task.pTask = pFunction;
-    node->task.Delay = delay;
-    node->task.Period = period;
-    node->task.RunMe = 0;
-    node->task.TaskID = task_count;
 
+    sTaskID* ID = alloc_ID();
+    if (!ID) return INVALID_ID;
+
+    ID->task.pTask = pFunction;
+    ID->task.Delay = delay;
+    ID->task.Period = period;
+    ID->task.RunMe = 0;
+    ID->task.TaskID = task_count;
 
     uint32_t slot = (current_tick + delay) % WHEEL_SIZE;
-    node->next = timer_wheel[slot];
-    timer_wheel[slot] = node;
+    ID->next = timer_wheel[slot];
+    timer_wheel[slot] = ID;
+
     task_count++;
-    return node->task.TaskID;
+    return ID->task.TaskID;
 }
 
-// O(1)
+// Cập nhật scheduler — O(1)
 void SCH_Update(void) {
     uint32_t slot = current_tick % WHEEL_SIZE;
-    sTaskNode* prev = NULL;
-    sTaskNode* node = timer_wheel[slot];
-    while (node) {
-        node->task.RunMe++;
+    sTaskID* prev = NULL;
+    sTaskID* ID = timer_wheel[slot];
 
-        if (node->task.Period > 0) {
-            // move to future slot
-            uint32_t next_slot = (current_tick + node->task.Period) % WHEEL_SIZE;
+    while (ID) {
+        ID->task.RunMe++;
 
-            // Remove from current slot
-            if (prev) prev->next = node->next;
-            else timer_wheel[slot] = node->next;
+        if (ID->task.Period > 0) {
+            uint32_t next_slot = (current_tick + ID->task.Period) % WHEEL_SIZE;
 
-            // Insert into new slot
-            sTaskNode* to_move = node;
-            node = (prev) ? prev->next : timer_wheel[slot];
+            // Xóa khỏi slot hiện tại
+            if (prev) prev->next = ID->next;
+            else timer_wheel[slot] = ID->next;
+
+            // Chuyển sang slot mới
+            sTaskID* to_move = ID;
+            ID = (prev) ? prev->next : timer_wheel[slot];
 
             to_move->next = timer_wheel[next_slot];
             timer_wheel[next_slot] = to_move;
         } else {
-            // one-shot: just move to next
-            prev = node;
-            node = node->next;
+            prev = ID;
+            ID = ID->next;
         }
     }
+
     current_tick++;
 }
 
 void SCH_Dispatch_Tasks(void) {
     uint32_t slot = (current_tick - 1) % WHEEL_SIZE;
-    sTaskNode* prev = NULL;
-    sTaskNode* node = timer_wheel[slot];
-    while (node) {
-        if (node->task.RunMe > 0) {
-            node->task.RunMe--;
-            if (node->task.pTask) (*node->task.pTask)();
-            if (node->task.Period == 0) {
-                // Delete one-shot task
-                if (prev) prev->next = node->next;
-                else timer_wheel[slot] = node->next;
-                free_node(node);
+    sTaskID* prev = NULL;
+    sTaskID* ID = timer_wheel[slot];
+
+    while (ID) {
+        if (ID->task.RunMe > 0) {
+            ID->task.RunMe--;
+            if (ID->task.pTask) (*ID->task.pTask)();
+
+            // Nếu là task 1 lần, xóa nó
+            if (ID->task.Period == 0) {
+                if (prev) prev->next = ID->next;
+                else timer_wheel[slot] = ID->next;
+
+                free_ID(ID);
                 task_count--;
-                // Restart scan from prev/slot in case link changed
-                node = (prev) ? prev->next : timer_wheel[slot];
+
+                ID = (prev) ? prev->next : timer_wheel[slot];
                 continue;
             }
         }
-        prev = node;
-        node = node->next;
+        prev = ID;
+        ID = ID->next;
     }
 }
