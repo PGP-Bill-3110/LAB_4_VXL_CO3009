@@ -13,7 +13,7 @@ uint8_t task_count = 0;
 uint32_t current_tick = 0;
 uint8_t Error_code_G = 0;
 
-// Bộ nhớ tĩnh cho các ID task
+
 static sTaskID task_IDs[SCH_MAX_TASKS];
 static uint8_t ID_used[SCH_MAX_TASKS];
 
@@ -25,7 +25,7 @@ void SCH_Init(void) {
     Error_code_G = 0;
 }
 
-// Cấp phát 1 ID trống từ mảng tĩnh
+
 static sTaskID* alloc_ID(void) {
     for (int i = 0; i < SCH_MAX_TASKS; i++) {
         if (!ID_used[i]) {
@@ -33,10 +33,10 @@ static sTaskID* alloc_ID(void) {
             return &task_IDs[i];
         }
     }
-    return NULL; // hết bộ nhớ
+    return NULL;
 }
 
-// Giải phóng ID (trả về cho pool)
+
 static void free_ID(sTaskID* ID) {
     int idx = ID - task_IDs;
     if (idx >= 0 && idx < SCH_MAX_TASKS) {
@@ -67,7 +67,7 @@ unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int
     return ID->task.TaskID;
 }
 
-// Cập nhật scheduler — O(1)
+//  O(1)
 void SCH_Update(void) {
     uint32_t slot = current_tick % WHEEL_SIZE;
     sTaskID* prev = NULL;
@@ -79,11 +79,11 @@ void SCH_Update(void) {
         if (ID->task.Period > 0) {
             uint32_t next_slot = (current_tick + ID->task.Period) % WHEEL_SIZE;
 
-            // Xóa khỏi slot hiện tại
+
             if (prev) prev->next = ID->next;
             else timer_wheel[slot] = ID->next;
 
-            // Chuyển sang slot mới
+
             sTaskID* to_move = ID;
             ID = (prev) ? prev->next : timer_wheel[slot];
 
@@ -108,7 +108,7 @@ void SCH_Dispatch_Tasks(void) {
             ID->task.RunMe--;
             if (ID->task.pTask) (*ID->task.pTask)();
 
-            // Nếu là task 1 lần, xóa nó
+
             if (ID->task.Period == 0) {
                 if (prev) prev->next = ID->next;
                 else timer_wheel[slot] = ID->next;

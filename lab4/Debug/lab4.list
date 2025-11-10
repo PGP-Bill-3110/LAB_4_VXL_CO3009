@@ -549,7 +549,7 @@ __STATIC_FORCEINLINE void __disable_irq(void)
 
 080003c0 <SCH_Init>:
 
-// Bộ nhớ tĩnh cho các ID task
+
 static sTaskID task_IDs[SCH_MAX_TASKS];
 static uint8_t ID_used[SCH_MAX_TASKS];
 
@@ -613,7 +613,7 @@ void SCH_Init(void) {
 
 08000430 <alloc_ID>:
 
-// Cấp phát 1 ID trống từ mảng tĩnh
+
 static sTaskID* alloc_ID(void) {
  8000430:	b480      	push	{r7}
  8000432:	b083      	sub	sp, #12
@@ -653,7 +653,7 @@ static sTaskID* alloc_ID(void) {
  800046c:	dde6      	ble.n	800043c <alloc_ID+0xc>
         }
     }
-    return NULL; // hết bộ nhớ
+    return NULL;
  800046e:	2300      	movs	r3, #0
 }
  8000470:	4618      	mov	r0, r3
@@ -667,7 +667,7 @@ static sTaskID* alloc_ID(void) {
 
 08000484 <free_ID>:
 
-// Giải phóng ID (trả về cho pool)
+
 static void free_ID(sTaskID* ID) {
  8000484:	b480      	push	{r7}
  8000486:	b085      	sub	sp, #20
@@ -804,7 +804,7 @@ unsigned char SCH_Add_Task(void (*pFunction)(), unsigned int delay, unsigned int
 
 08000568 <SCH_Update>:
 
-// Cập nhật scheduler — O(1)
+//  O(1)
 void SCH_Update(void) {
  8000568:	b480      	push	{r7}
  800056a:	b087      	sub	sp, #28
@@ -847,7 +847,7 @@ void SCH_Update(void) {
  80005a6:	f003 031f 	and.w	r3, r3, #31
  80005aa:	60bb      	str	r3, [r7, #8]
 
-            // Xóa khỏi slot hiện tại
+
             if (prev) prev->next = ID->next;
  80005ac:	697b      	ldr	r3, [r7, #20]
  80005ae:	2b00      	cmp	r3, #0
@@ -864,7 +864,7 @@ void SCH_Update(void) {
  80005c2:	68fb      	ldr	r3, [r7, #12]
  80005c4:	f841 2023 	str.w	r2, [r1, r3, lsl #2]
 
-            // Chuyển sang slot mới
+
             sTaskID* to_move = ID;
  80005c8:	693b      	ldr	r3, [r7, #16]
  80005ca:	607b      	str	r3, [r7, #4]
@@ -967,7 +967,7 @@ void SCH_Dispatch_Tasks(void) {
  8000668:	681b      	ldr	r3, [r3, #0]
  800066a:	4798      	blx	r3
 
-            // Nếu là task 1 lần, xóa nó
+
             if (ID->task.Period == 0) {
  800066c:	68bb      	ldr	r3, [r7, #8]
  800066e:	689b      	ldr	r3, [r3, #8]
